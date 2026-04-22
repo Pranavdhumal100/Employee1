@@ -1,56 +1,107 @@
 pipeline {
     agent any
-
+    
     tools {
-        maven 'Maven'
+        maven 'Maven'  
     }
-
+    
     environment {
-        IMAGE_NAME = "pranvdhumal909/emp1"
-        TAG = "v1"
+        DOCKER_IMAGE = 'pranvdhumal909/emp1'
+        DOCKER_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
-
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/Pranavdhumal100/Employee1.git'
+                    url: 'https://github.com/Pranavdhumal100/Employee1.git',
+                    credentialsId: 'github-credentails'
             }
         }
 
-        stage('Build') {
+        stage('Check Docker') {
             steps {
-                bat 'mvn clean package'
+                bat '''
+                    echo Checking Docker installation...
+                    docker --version
+                    if %errorlevel% neq 0 (
+                        echo Docker not installed!
+                        exit /b 1
+                    )
+                    
+                    echo Checking Docker daemon...
+                    docker ps
+                    if %errorlevel% neq 0 (
+                        echo ========================================
+                        echo ERROR: Docker daemon is not running!
+                        echo ========================================
+                        echo Please start Docker Desktop first.
+                        echo Then restart Jenkins service.
+                        echo ========================================
+                        exit /b 1
+                    )
+                    echo Docker is ready!
+                '''
             }
         }
 
-        stage('Test') {
+        stage('Build & Test') {
             steps {
-                bat 'mvn test'
+                bat 'mvn clean test'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                }
             }
         }
 
         stage('Docker Build') {
             steps {
-                bat 'docker build -t %IMAGE_NAME%:%TAG% .'
+                bat "docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% ."
+                bat "docker tag %DOCKER_IMAGE%:%DOCKER_TAG% %DOCKER_IMAGE%:latest"
             }
         }
 
         stage('Docker Push') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'dockerhub-credentials',
+            usernameVariable: 'DOCKER_USERNAME',
+            passwordVariable: 'DOCKER_PASSWORD'
+        )]) {
+            bat '''
+                echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                docker push %DOCKER_IMAGE%:%DOCKER_TAG%
+                docker push %DOCKER_IMAGE%:latest
+                docker logout
+            '''
+        }
+    }
+}
+
+        stage('Deploy') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'pranvdhumal909',
-                    passwordVariable: 'dckr_pat_fnNYk2vQrH2EWqAD78yg4nk726U
-'
-                )]) {
-                    bat '''
-                        echo %PASS% | docker login -u %USER% --password-stdin
-                        docker push %IMAGE_NAME%:%TAG%
-                    '''
-                }
+                bat """
+                    docker stop springboot-app || exit 0
+                    docker rm springboot-app || exit 0
+                    docker run -d -p 9090:9090 --name springboot-app %DOCKER_IMAGE%:latest
+                """
             }
+        }
+    }
+
+    post {
+        success { 
+            echo '========================================'
+            echo '✅ Pipeline completed successfully!'
+            echo '🌐 Application: http://localhost:9090'
+            echo '========================================'
+        }
+        failure { 
+            echo '========================================'
+            echo '❌ Pipeline failed!'
+            echo '========================================'
         }
     }
 }
