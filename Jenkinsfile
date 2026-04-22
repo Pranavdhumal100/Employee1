@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = "pranvdhumal909/employee-api"
+        IMAGE_NAME = "pranvdhumal909/emp1"
         TAG = "v1"
     }
 
@@ -33,19 +33,20 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                bat 'docker build -t employee-api:v1 .'
+                bat 'docker build -t %IMAGE_NAME%:%TAG% .'
             }
         }
 
         stage('Docker Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                  usernameVariable: 'USER',
-                                                  passwordVariable: 'PASS')]) {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
+                )]) {
                     bat '''
                         echo %PASS% | docker login -u %USER% --password-stdin
-                        docker tag employee-api:v1 %USER%/employee-api:v1
-                        docker push %USER%/employee-api:v1
+                        docker push %IMAGE_NAME%:%TAG%
                     '''
                 }
             }
