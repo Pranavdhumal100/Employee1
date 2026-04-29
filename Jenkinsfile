@@ -1,10 +1,10 @@
 pipeline {
     agent any
-    
+
     tools {
-        maven 'Maven'  
+        maven 'Maven'
     }
-    
+
     environment {
         DOCKER_IMAGE = 'pranvdhumal909/emp1'
         DOCKER_TAG = "${BUILD_NUMBER}"
@@ -28,7 +28,7 @@ pipeline {
                         echo Docker not installed!
                         exit /b 1
                     )
-                    
+
                     echo Checking Docker daemon...
                     docker ps
                     if %errorlevel% neq 0 (
@@ -64,21 +64,21 @@ pipeline {
         }
 
         stage('Docker Push') {
-    steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'dockerhub-creds',
-            usernameVariable: 'DOCKER_USERNAME',
-            passwordVariable: 'DOCKER_PASSWORD'
-        )]) {
-            bat '''
-                echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
-                docker push %DOCKER_IMAGE%:%DOCKER_TAG%
-                docker push %DOCKER_IMAGE%:latest
-                docker logout
-            '''
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+                    bat '''
+                        echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                        docker push %DOCKER_IMAGE%:%DOCKER_TAG%
+                        docker push %DOCKER_IMAGE%:latest
+                        docker logout
+                    '''
+                }
+            }
         }
-    }
-}
 
         stage('Deploy') {
             steps {
@@ -92,15 +92,15 @@ pipeline {
     }
 
     post {
-        success { 
+        success {
             echo '========================================'
-            echo '✅ Pipeline completed successfully!'
-            echo '🌐 Application: http://localhost:9090'
+            echo 'Pipeline completed successfully!'
+            echo 'Application: http://localhost:9090'
             echo '========================================'
         }
-        failure { 
+        failure {
             echo '========================================'
-            echo '❌ Pipeline failed!'
+            echo 'Pipeline failed!'
             echo '========================================'
         }
     }
