@@ -15,7 +15,7 @@ pipeline {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/Pranavdhumal100/Employee1.git',
-                    credentialsId: 'github-credentails'
+                    credentialsId: 'github-creds'
             }
         }
 
